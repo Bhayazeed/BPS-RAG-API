@@ -1,0 +1,22 @@
+# Python virtual environment
+.env
+venv/
+.venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# Generated data and artifacts
+data/bps-datapdf
+data/vector_store
+data/chunks.json
+
+# Optional: Ignore the source PDF files
+# Uncomment the line below if you don't want to push your PDFs
+# /data/bps-datadf/
+
+# IDE and OS specific files
+.idea/
+.vscode/
+*.DS_Store
