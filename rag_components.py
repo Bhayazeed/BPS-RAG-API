@@ -113,5 +113,5 @@ def load_or_create_rag_chain():
     rag_chain = ({"context": itemgetter("question") | compression_retriever | format_docs_with_metadata, "question": itemgetter("question")} | prompt | llm | StrOutputParser())
     
     print("--- RAG Chain Siap Digunakan! ---")
-    return rag_chain, db
+    return rag_chain, db, compression_retriever, prompt, llm, StrOutputParser()
 

@@ -14,3 +14,9 @@ class IngestResponse(BaseModel):
 
 class DocumentListResponse(BaseModel):
     processed_documents: List[str]
+
+class DebugQueryResponse(BaseModel):
+    question: str
+    retrieved_context: str
+    answer: str
+    

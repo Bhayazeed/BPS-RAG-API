@@ -4,16 +4,17 @@ import asyncio
 import shutil
 import uuid
 import re
-from contextlib import asynccontextmanager # <-- Impor yang dibutuhkan
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
+from operator import itemgetter # <-- Impor yang dibutuhkan untuk debug
 
 # Import dari file lokal
 import config
-from api_models import QueryRequest, QueryResponse, IngestResponse, DocumentListResponse
-from rag_components import load_or_create_rag_chain
+from api_models import QueryRequest, QueryResponse, IngestResponse, DocumentListResponse, DebugQueryResponse
+from rag_components import load_or_create_rag_chain, format_docs_with_metadata
 
 # Langchain & Docling imports untuk ingesti
 from langchain.docstore.document import Document as LangchainDocument
@@ -38,10 +39,17 @@ async def lifespan(app: FastAPI):
     print("Memulai proses startup server...")
     config.PDF_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
     
-    # Muat model dan simpan di state aplikasi
-    rag_chain, db = load_or_create_rag_chain()
+    # --- PERUBAHAN PENTING ---
+    # Pastikan fungsi load_or_create_rag_chain Anda mengembalikan semua komponen ini
+    rag_chain, db, compression_retriever, prompt, llm, output_parser = load_or_create_rag_chain()
+    
+    # Simpan semua komponen di state aplikasi untuk digunakan nanti
     app_state["rag_chain"] = rag_chain
     app_state["db"] = db
+    app_state["compression_retriever"] = compression_retriever
+    app_state["prompt"] = prompt
+    app_state["llm"] = llm
+    app_state["output_parser"] = output_parser
     
     print("Proses startup selesai. Server siap menerima request.")
     
@@ -64,20 +72,19 @@ app = FastAPI(
 
 origins = [
     "http://localhost",
-    "http://localhost:5173", # <-- Izinkan server development Vue/React/Svelte teman Anda
-    "http://localhost:3000", # <-- Umum untuk React
-    "http://localhost:8080", # <-- Umum untuk Vue
-    "http://localhost:8000"
-    # Tambahkan domain frontend Anda jika sudah di-deploy
-    # "https://your-frontend-domain.com", 
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:8080",
+    "http://localhost:8000",
+    "*" # Izinkan semua untuk kemudahan debugging
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # Izinkan origin yang ada di daftar
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],    # Izinkan semua metode (GET, POST, dll.)
-    allow_headers=["*"],    # Izinkan semua header
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Kunci untuk mencegah beberapa proses ingesti berjalan bersamaan
@@ -129,7 +136,7 @@ def get_all_chunks_from_json() -> List[dict]:
         try:
             return json.load(f)
         except json.JSONDecodeError:
-            return [] # Kembalikan list kosong jika file json korup atau kosong
+            return []
 
 # Endpoints API
 @app.get("/", include_in_schema=False)
@@ -154,12 +161,10 @@ async def ingest_document(file: UploadFile = File(...)):
             file.file.close()
 
         try:
-            print(f"Memulai pemrosesan untuk: {file.filename}")
             new_chunks = process_pdf_to_chunks(file_path)
             if not new_chunks:
                 raise HTTPException(status_code=422, detail="Tidak ada konten yang dapat diekstrak dari PDF.")
 
-            # Akses DB dari state aplikasi
             db = app_state["db"]
             db.add_documents(new_chunks)
             db.save_local(folder_path=str(config.VECTOR_STORE_PATH), index_name=config.INDEX_NAME)
@@ -169,7 +174,6 @@ async def ingest_document(file: UploadFile = File(...)):
             with open(config.CHUNKS_JSON_PATH, 'w', encoding='utf-8') as f:
                 json.dump(all_chunks_data, f, ensure_ascii=False, indent=4)
             
-            print(f"Berhasil memproses dan menambahkan {len(new_chunks)} chunk dari {file.filename}")
             return IngestResponse(filename=file.filename, message="File berhasil diproses.", chunks_created=len(new_chunks))
         except Exception as e:
             if file_path.exists(): file_path.unlink()
@@ -193,6 +197,47 @@ async def ask_question(request: QueryRequest):
         return QueryResponse(answer=answer)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Terjadi kesalahan internal: {e}")
+
+# --- ENDPOINT BARU UNTUK DEBUGGING ---
+@app.post("/debug/ask", response_model=DebugQueryResponse, tags=["Debugging"])
+async def debug_ask_question(request: QueryRequest):
+    """
+    Endpoint ini mengembalikan jawaban DAN konteks yang diambil
+    untuk membantu proses debugging.
+    """
+    # Ambil komponen yang sudah dimuat dari state aplikasi
+    retriever = app_state.get("compression_retriever")
+    prompt = app_state.get("prompt")
+    llm = app_state.get("llm")
+    output_parser = app_state.get("output_parser")
+
+    # Pastikan semua komponen sudah siap
+    if not all([retriever, prompt, llm, output_parser]):
+        raise HTTPException(status_code=503, detail="Service Unavailable: Komponen RAG belum siap.")
+
+    try:
+        question = request.question
+        
+        # Langkah 1: Ambil konteks secara manual menggunakan retriever
+        print(f"DEBUG: Mengambil konteks untuk pertanyaan: '{question}'")
+        retrieved_docs = retriever.invoke(question)
+        retrieved_context = format_docs_with_metadata(retrieved_docs)
+        print(f"DEBUG: Konteks yang berhasil diambil:\n---\n{retrieved_context}\n---")
+
+        # Langkah 2: Buat jawaban berdasarkan konteks yang baru diambil
+        chain = prompt | llm | output_parser
+        answer = chain.invoke({"context": retrieved_context, "question": question})
+
+        # Langkah 3: Kembalikan semuanya untuk dianalisis
+        return DebugQueryResponse(
+            question=question,
+            retrieved_context=retrieved_context,
+            answer=answer
+        )
+    except Exception as e:
+        print(f"ERROR saat menjalankan /debug/ask: {e}")
+        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan internal: {e}")
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)
