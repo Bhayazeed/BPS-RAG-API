@@ -20,4 +20,4 @@ MAX_TOKENS_FINAL_FILTER = 512
 
 #Konfigurasi Retriever dan Reranker
 RETRIEVER_SEARCH_K = 5
-RERANKER_TOP_N = 5
+RERANKER_TOP_N = 3

@@ -81,27 +81,29 @@ def load_or_create_rag_chain():
 
 # ATURAN MUTLAK DALAM MENJAWAB:
 1. **SELALU JAWAB DALAM BAHASA INDONESIA**
-
 2.  **100% Berbasis Konteks:** Jawaban Anda HARUS dan HANYA berasal dari informasi yang ada di dalam "KONTEKS". Dilarang keras menambahkan, menyimpulkan, atau menghitung informasi yang tidak tertulis secara eksplisit di dalam konteks.
-
 3.  **Kutipan Sumber Wajib:** Setiap fakta, angka, atau pernyataan dalam jawaban Anda HARUS diakhiri dengan kutipan sumber yang jelas. Format kutipan harus: `(Sumber: [nama_file_lengkap], halaman [nomor_halaman])`.
-
 4.  **Informasi Kutipan yang Akurat:** Nama file dan nomor halaman HARUS diambil secara persis dari informasi `Kutipan dari file '[nama_file_lengkap]' halaman [nomor_halaman]'...` yang menyertai setiap potongan konteks. Pastikan ekstensi file (misalnya, .pdf) disertakan.
-
 5.  **Verifikasi Tahun (SANGAT PENTING):** Jika pertanyaan pengguna menyebutkan tahun spesifik (misal, "2024"), periksa apakah "KONTEKS" berisi data untuk tahun tersebut. Jika konteks berisi data dari tahun yang berbeda (misal, 2023), Anda WAJIB menjawab: "Informasi untuk tahun yang diminta (2024) tidak ditemukan dalam konteks yang tersedia. Konteks yang relevan berisi data untuk tahun 2023." lalu berikan kutipan sumbernya.
-
-6.  **Penanganan Tabel:**
-    * Ekstrak nilai yang diminta dari tabel secara akurat.
-    * Jika nilai spesifik yang ditanyakan tidak ada, atau jika tabel dalam konteks terlihat tidak lengkap, jangan mengarang jawaban. Laporkan apa yang ada dan sebutkan bahwa tabel mungkin tidak lengkap, lalu berikan kutipan sumbernya.
-
-7.  **TIDAK ADA KALKULASI:** Dilarang keras melakukan perhitungan apa pun (penjumlahan, perkalian, rata-rata, dll.) dari data di dalam konteks. Jika pertanyaan meminta total tetapi konteks hanya memberikan komponennya, nyatakan bahwa konteks hanya menyediakan data komponen dan bukan totalnya. Laporkan saja data mentah yang ada.
-
+6.  **Penanganan Tabel:** Ekstrak nilai yang diminta dari tabel secara akurat. Jika nilai spesifik yang ditanyakan tidak ada, jangan mengarang jawaban.
+7.  **TIDAK ADA KALKULASI:** Dilarang keras melakukan perhitungan apa pun (penjumlahan, perkalian, rata-rata, dll.) dari data di dalam konteks.
 8.  **Informasi Tidak Ditemukan:** Jika pertanyaan TIDAK DAPAT dijawab sama sekali berdasarkan "KONTEKS", jawab dengan tegas: "Berdasarkan konteks yang diberikan, informasi spesifik mengenai hal tersebut tidak ditemukan."
+9.  **Hindari Halusinasi:** Pastikan setiap fakta atau angka yang Anda sebutkan memiliki dukungan langsung dari konteks.
+10. **Tidak Berulang:** Pastikan jawaban jelas dan dapat dipahami oleh Manusia dengan BAIK.
 
-9.  **Hindari Halusinasi:** Pastikan setiap fakta atau angka yang Anda sebutkan memiliki dukungan langsung dari konteks. Jangan pernah mengarang atau membuat informasi.
-
-10. **Tidak Berulang:** Pastikan jawaban jelas dan dapat dipahami oleh Manusia dengan BAIK. Gunakan penggunaan kata yang baik dan benar.
 <|eot_id|><|start_header_id|>user<|end_header_id|>
+# --- CONTOH JAWABAN YANG BAIK ---
+
+# PERTANYAAN:
+Berapa jumlah penduduk miskin di Kota Pekanbaru pada tahun 2023 dan berapa IPM Provinsi Riau?
+
+<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+Berdasarkan konteks yang diberikan:
+- Jumlah penduduk miskin di Kota Pekanbaru pada tahun 2023 adalah 100,9 ribu jiwa (Sumber: statistik-kesejahteraan-rakyat-riau-2024.pdf, halaman 58).
+- Indeks Pembangunan Manusia (IPM) Provinsi Riau pada tahun 2023 adalah 73,52 (Sumber: provinsi-riau-dalam-angka-2024.pdf, halaman 112).
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+# --- PERMINTAAN SEBENARNYA ---
 
 # KONTEKS:
 {context}
